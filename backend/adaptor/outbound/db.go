@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"gorm.io/driver/sqlite"
@@ -32,13 +33,22 @@ func (b *Base) BeforeUpdate(tx *gorm.DB) (err error) {
 	return
 }
 
-type User struct {
-	Name string
-	Age  int
+type Asset struct {
+	Name         string       `gorm:"column:name;type:varchar;size:255" binding:"required"`
+	CurrencyType CurrencyType `gorm:"column:currency_type;type:varchar" json:"currency_type" binding:"required"`
+	Currency     float64      `gorm:"column:currency;type:double" binding:"required"`
 	Base
 }
 
-var db *gorm.DB
+func (a *Asset) BeforeSave(*gorm.DB) (err error) {
+	if !slices.Contains(CollectionCurrencyTypes, a.CurrencyType) {
+		return fmt.Errorf("currency_type %v not vaild", a.CurrencyType)
+	}
+
+	return
+}
+
+var DB *gorm.DB
 
 func init() {
 	print("执行 init\n")
@@ -49,13 +59,13 @@ func init() {
 		panic("get home path error")
 	}
 
-	db, err := gorm.Open(sqlite.Open(filepath.Join(home, ".finance-go", "test.db")), &gorm.Config{})
+	DB, err = gorm.Open(sqlite.Open(filepath.Join(home, ".finance-go", "test.db")), &gorm.Config{})
 	if err != nil {
 		fmt.Printf("failed to connect database, %v", err)
 	}
 
 	// 2. 自动迁移表结构
-	db.AutoMigrate(&User{})
+	DB.AutoMigrate(&Asset{})
 }
 
 // demo

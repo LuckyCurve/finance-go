@@ -16,26 +16,23 @@ const (
 	HKD CurrencyType = "hkd"
 )
 
-var collectionCurrencyTypes = []CurrencyType{CNY, HKD}
+var CollectionCurrencyTypes = []CurrencyType{USD, CNY, HKD}
 
-func GetExchangeRate(time time.Time) (map[CurrencyType]float64, error) {
+func GetExchangeRate(time time.Time, currencyType CurrencyType) (map[CurrencyType]float64, error) {
 	timeStr := time.Format("2006-01-02") // Go 的日期格式必须写成 "2006-01-02"
 
-	// 拼接 URL
-	url := fmt.Sprintf("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@%s/v1/currencies/usd.json", timeStr)
+	url := fmt.Sprintf("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@%s/v1/currencies/%v.json", timeStr, currencyType)
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "+
 		"(KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36")
 
-	// 发送请求
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	// 读取响应
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -49,7 +46,7 @@ func GetExchangeRate(time time.Time) (map[CurrencyType]float64, error) {
 
 	res := make(map[CurrencyType]float64)
 
-	for _, c := range collectionCurrencyTypes {
+	for _, c := range CollectionCurrencyTypes {
 		res[c] = response.USD[string(c)]
 	}
 

@@ -7,7 +7,7 @@ import (
 )
 
 func TestXxx(t *testing.T) {
-	res, err := GetExchangeRate(time.Now().Add(-24 * time.Hour))
+	res, err := GetExchangeRate(time.Now(), USD)
 	print(err)
 	fmt.Printf("%v", res)
 }
