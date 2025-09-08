@@ -14,7 +14,7 @@ function App() {
 	return (
 		<>
 			<p>{text}</p>
-			<MyChart />
+			<MyChart apiUrl="/api/asset/listWithExchangeRate?currency_type=usd" />
 		</>
 	);
 }

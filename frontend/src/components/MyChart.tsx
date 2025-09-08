@@ -1,43 +1,96 @@
-import React, { useRef, useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import * as echarts from "echarts";
 
-const MyChart: React.FC = () => {
-	const chartRef = useRef<HTMLDivElement | null>(null); // 类型注解
+interface Asset {
+	Name: string;
+	currency_type: string;
+	Currency: number;
+	ID: number;
+	CreateTime: string;
+	UpdateTime: string;
+}
+
+interface ApiResponse {
+	code: number;
+	data: Asset[];
+}
+
+interface SankeyChartProps {
+	apiUrl: string; // 数据接口
+	width?: string;
+	height?: string;
+}
+
+const SankeyChart: React.FC<SankeyChartProps> = ({
+	apiUrl,
+	width = "800px",
+	height = "600px",
+}) => {
+	const chartRef = useRef<HTMLDivElement>(null);
+	const chartInstance = useRef<echarts.EChartsType | null>(null);
 
 	useEffect(() => {
-		if (chartRef.current) {
-			const chart = echarts.init(chartRef.current); // 初始化图表
+		if (!chartRef.current) return;
 
-			const options: echarts.EChartOption = {
-				// 使用 EChartOption 类型
-				title: {
-					text: "ECharts Example",
-				},
-				tooltip: {},
-				xAxis: {
-					data: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-				},
-				yAxis: {},
-				series: [
-					{
-						name: "Sales",
-						type: "line",
-						data: [5, 20, 36, 10, 10, 20, 30],
-					},
-				],
-			};
+		chartInstance.current = echarts.init(chartRef.current);
 
-			// 使用配置项和数据显示图表
-			chart.setOption(options);
+		fetch(apiUrl)
+			.then((res) => res.json())
+			.then((data: ApiResponse) => {
+				if (data.code !== 200) {
+					console.error("接口返回错误");
+					return;
+				}
 
-			// 在组件卸载时销毁图表实例，防止内存泄漏
-			return () => {
-				chart.dispose();
-			};
-		}
-	}, []);
+				const assets = data.data;
 
-	return <div ref={chartRef} style={{ width: "100%", height: "400px" }} />;
+				// 1. 构造节点
+				const currencyNodes = Array.from(
+					new Set(assets.map((a) => a.currency_type.toUpperCase()))
+				).map((name) => ({ name }));
+				const assetNodes = assets.map((a) => ({ name: a.Name }));
+				const nodes = [...assetNodes, ...currencyNodes];
+
+				// 2. 构造连接
+				const links = assets.map((a) => ({
+					source: a.Name,
+					target: a.currency_type.toUpperCase(),
+					value: a.Currency,
+				}));
+
+				// 3. 初始化 ECharts option
+				const option: echarts.EChartsOption = {
+					title: { text: "资产桑基图" },
+					tooltip: { trigger: "item", triggerOn: "mousemove" },
+					series: [
+						{
+							type: "sankey",
+							data: nodes,
+							links: links,
+							emphasis: { focus: "adjacency" },
+							label: {
+								color: "#000",
+								// ✅ 删除 RichText 或复杂 borderRadius，避免 TS 报错
+								fontSize: 12,
+							},
+						},
+					],
+				};
+
+				chartInstance.current?.setOption(option as echarts.EChartOption);
+			})
+			.catch((err) => console.error(err));
+
+		// 4. 响应式
+		const handleResize = () => chartInstance.current?.resize();
+		window.addEventListener("resize", handleResize);
+		return () => {
+			window.removeEventListener("resize", handleResize);
+			chartInstance.current?.dispose();
+		};
+	}, [apiUrl]);
+
+	return <div ref={chartRef} style={{ width, height }} />;
 };
 
-export default MyChart;
+export default SankeyChart;
